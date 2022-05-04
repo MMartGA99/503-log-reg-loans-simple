@@ -4,6 +4,9 @@ import plotly.graph_objs as go
 import pickle
 import json
 from dash.dependencies import Input, Output, State
+import dash_bootstrap_components as dbc 
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 ########### Define your variables ######
 myheading1='Predicting Mortgage Loan Approval'
@@ -11,10 +14,15 @@ image1='assets/rocauc.html'
 tabtitle = 'Loan Prediction'
 sourceurl = 'https://datahack.analyticsvidhya.com/contest/practice-problem-loan-prediction-iii/'
 githublink = 'https://github.com/plotly-dash-apps/503-log-reg-loans-simple'
+areadict = {"Rural":[1,0,0], "SemiUrban":[0,1,0],"Urban":[0,0,1]}
 
 ########### open the json file ######
 with open('assets/rocauc.json', 'r') as f:
     fig=json.load(f)
+
+with open('assets/conmatrix.json', 'r') as g:
+    conmatrix=json.load(g)
+    
 
 ########### open the pickle file ######
 filename = open('analysis/loan_approval_logistic_model.pkl', 'rb')
@@ -34,7 +42,12 @@ app.layout = html.Div(children=[
     html.Div([
         html.Div(
             [dcc.Graph(figure=fig, id='fig1')
-            ], className='six columns'),
+            ], className='six columns',style={"width":500, "margin": 0, 'display': 'inline-block'}),
+        html.Div(
+            [dcc.Graph(figure=conmatrix, id='fig2')
+            ], className='six columns',style={'display': 'inline-block'}),
+        
+        
         html.Div([
                 html.H3("Features"),
                 html.Div('Credit History:'),
@@ -47,8 +60,13 @@ app.layout = html.Div(children=[
                 dcc.Input(id='ApplicantIncome', value=5000, type='number', min=0, max=100000, step=500),
                 html.Div('Probability Threshold for Loan Approval'),
                 dcc.Input(id='Threshold', value=50, type='number', min=0, max=100, step=1),
-
-            ], className='three columns'),
+                html.Div('SelfEmployed:'),
+                dcc.Dropdown(id='SelfEmployed', options=[{'label': "Yes", 'value': 1}, {'label': "No", 'value': 0}]),
+                html.Datalist(id='area', children=[html.Option(value=word) for word in areadict.keys()]),
+                html.Div('Property Area'),
+                dcc.Input(id='PropertyArea', value='', type='text',list='area'),
+                                  
+            ], className='three columns', style={"width": "5%"}),
             html.Div([
                 html.H3('Predictions'),
                 html.Div('Predicted Status:'),
@@ -82,11 +100,13 @@ app.layout = html.Div(children=[
      Input(component_id='LoanAmount', component_property='value'),
      Input(component_id='Loan_Amount_Term', component_property='value'),
      Input(component_id='ApplicantIncome', component_property='value'),
+     Input(component_id='SelfEmployed', component_property='value'),
      Input(component_id='Threshold', component_property='value')
+    
     ])
-def prediction_function(Credit_History, LoanAmount, Loan_Amount_Term, ApplicantIncome, Threshold):
+def prediction_function(Credit_History, LoanAmount, Loan_Amount_Term, ApplicantIncome, SelfEmployed, Threshold):
     try:
-        data = [[Credit_History, LoanAmount, Loan_Amount_Term, ApplicantIncome]]
+        data = [[Credit_History, LoanAmount, Loan_Amount_Term, ApplicantIncome, SelfEmployed]+areadict[Area]]
         rawprob=100*unpickled_model.predict_proba(data)[0][1]
         func = lambda y: 'Approved' if int(rawprob)>Threshold else 'Denied'
         formatted_y = func(rawprob)
@@ -104,4 +124,4 @@ def prediction_function(Credit_History, LoanAmount, Loan_Amount_Term, ApplicantI
 
 ############ Deploy
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
